@@ -29,9 +29,20 @@ export default class Block extends Component {
     }, bounceDuration);
   }
 
+  // renderEmptyBlock = () => (
+  //   <div className="empty-block">
+  //     <style jsx>{emptyBlockStyle}</style>
+  //   </div>
+  // )
+
   render() {
     const { value } = this.props;
     const { animationClasses } = this.state;
+
+    // if (value === 0) {
+    //   return this.renderEmptyBlock();
+    // }
+
     return (
       <div className={classNames('block', [...animationClasses])}>
         {value}
@@ -40,6 +51,14 @@ export default class Block extends Component {
     );
   }
 }
+
+const emptyBlockStyle = css`
+  .empty-block {
+    display: inline-block;
+    height: 24%;
+    width: 24%;
+  }
+`;
 
 const styles = css`
   .block {
