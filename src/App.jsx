@@ -3,23 +3,21 @@ import css from 'styled-jsx/css';
 
 import Block from './Block';
 
-import { SIZE, STARTING_BLOCK, INIT_VALUES } from './constants';
-import { getRandomInt, getDistinctRandomInt } from './utils';
+import { SIZE, BLOCK_STATUS } from './constants';
 import Controller from './Controller';
 
 class App extends Component {
   constructor(props) {
     super(props);
     this.testValues = [
-      [2, 0, 0, 0],
-      [2, 0, 0, 0],
-      [4, 0, 0, 0],
-      [0, 0, 0, 0],
+      [{ value: 2 }, { value: 0 }, { value: 0 }, { value: 0 }],
+      [{ value: 2 }, { value: 0 }, { value: 0 }, { value: 0 }],
+      [{ value: 0 }, { value: 0 }, { value: 0 }, { value: 0 }],
+      [{ value: 0 }, { value: 0 }, { value: 0 }, { value: 0 }],
     ];
     this.state = {
-      blockState: this.initGame(),
+      blockState: Controller.initGame(),
     };
-    // this.logData();
   }
 
   componentDidMount() {
@@ -40,35 +38,36 @@ class App extends Component {
     }
   }
 
-  initGame = () => {
-    const blockState = [];
-    const randomIndex = getDistinctRandomInt(SIZE * SIZE, STARTING_BLOCK);
-    for (let i = 0; i < SIZE; i++) {
-      blockState[i] = [];
-      for (let j = 0; j < SIZE; j++) {
-        const currIndex = (i * SIZE) + j;
-        if (randomIndex.indexOf(currIndex) !== -1) {
-          blockState[i][j] = INIT_VALUES[getRandomInt(INIT_VALUES.length)];
-        } else {
-          blockState[i][j] = 0;
-        }
-      }
+  addBlock = (blockState) => {
+    const isMoved = blockState.reduce((sum, row) => sum + row.filter(block => block.status === BLOCK_STATUS.UNTOUCHED).length, 0) < SIZE * SIZE;
+    if (!isMoved) {
+      return blockState;
     }
-    return blockState;
+    return Controller.addBlock(blockState, 2);
   }
 
-  logData = () => {
+  moveUp = () => {
     const { blockState } = this.state;
-    for (let i = 0; i < SIZE; i++) {
-      for (let j = 0; j < SIZE; j++) {
-        console.log(blockState[i][j]);
-      }
-      console.log('\n');
-    }
+    const newBlockState = this.addBlock(Controller.moveUp(blockState));
+    this.setState({ blockState: newBlockState });
   }
 
-  resetBlockValues = () => {
-    this.setState({ blockState: this.testValues });
+  moveDown = () => {
+    const { blockState } = this.state;
+    const newBlockState = this.addBlock(Controller.moveDown(blockState));
+    this.setState({ blockState: newBlockState });
+  }
+
+  moveLeft = () => {
+    const { blockState } = this.state;
+    const newBlockState = this.addBlock(Controller.moveLeft(blockState));
+    this.setState({ blockState: newBlockState });
+  }
+
+  moveRight = () => {
+    const { blockState } = this.state;
+    const newBlockState = this.addBlock(Controller.moveRight(blockState));
+    this.setState({ blockState: newBlockState });
   }
 
   renderBlocks = () => {
@@ -76,43 +75,17 @@ class App extends Component {
     const blocks = [];
     for (let i = 0; i < SIZE; i++) {
       for (let j = 0; j < SIZE; j++) {
-        blocks.push(<Block value={blockState[i][j]} />);
+        blocks.push(<Block key={(i * SIZE) + j} block={blockState[i][j]} />);
       }
     }
     return blocks;
   }
 
-  moveUp = () => {
-    const { blockState } = this.state;
-    let newBlockState = Controller.moveUp(blockState);
-    newBlockState = Controller.addBlock(newBlockState, 2);
-    this.setState({ blockState: newBlockState });
-  }
-
-  moveDown = () => {
-    const { blockState } = this.state;
-    let newBlockState = Controller.moveDown(blockState);
-    newBlockState = Controller.addBlock(newBlockState, 2);
-    this.setState({ blockState: newBlockState });
-  }
-
-  moveLeft = () => {
-    const { blockState } = this.state;
-    let newBlockState = Controller.moveLeft(blockState);
-    newBlockState = Controller.addBlock(newBlockState, 2);
-    this.setState({ blockState: newBlockState });
-  }
-
-  moveRight = () => {
-    const { blockState } = this.state;
-    let newBlockState = Controller.moveRight(blockState);
-    newBlockState = Controller.addBlock(newBlockState, 2);
-    this.setState({ blockState: newBlockState });
-  }
+  // TODO: save state, score, highscore, reset game, gameover, win & replay
 
   render() {
     return (
-      <div className="App">
+      <div className="app">
         <button onClick={this.resetBlockValues}>RESET</button>
         <div className="board">
           {this.renderBlocks()}
@@ -123,11 +96,20 @@ class App extends Component {
   }
 }
 
+// TODO: Responsive
 const styles = css`
+  .app {
+    background-color: #FAF8F0;
+    height: 100%;
+    font-family: "Clear Sans", "Helvetica Neue", Arial, sans-serif;
+  }
   .board {
-    border: 1px solid black;
+    margin: 0 auto;    
+    padding: 5px;
     width: 400px; 
     height: 400px;
+    background-color: #BBADA2;
+    border-radius: 4px;
   }
 `;
 

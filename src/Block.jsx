@@ -1,81 +1,140 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import css from 'styled-jsx/css';
 import classNames from 'classnames';
 
-const bounceDuration = 50;
+import { SIZE, BLOCK_STATUS, BLOCK_COLOR } from './constants';
+
+const { NEW, MERGED, MOVED } = BLOCK_STATUS;
+const animDuration = 100;
+
+// TODO: Split animation css to another file
 
 export default class Block extends Component {
   static propTypes = {
-    value: PropTypes.number.isRequired,
+    block: PropTypes.object.isRequired,
   }
 
-  state = {
-    animationClasses: [],
-  }
-
-  componentDidUpdate(prevProps) {
-    if (prevProps.value !== 0 && prevProps.value * 2 === this.props.value) {
-      this.doBounce();
+  computeAnimClass = () => {
+    const { block } = this.props;
+    const animClass = [];
+    switch (block.status) {
+      case MERGED: animClass.push(`merge-${block.meta.direction}`); break;
+      case NEW: animClass.push('new'); break;
+      case MOVED: animClass.push(`move-${block.meta.direction}`); break;
+      default: break;
     }
+    return animClass;
   }
-
-  doBounce = () => {
-    this.setState({ animationClasses: ['bounce-on'] });
-    setTimeout(() => {
-      this.setState(pState => ({
-        animationClasses: pState.animationClasses.filter(c => c !== 'bounce-on'),
-      }));
-    }, bounceDuration);
-  }
-
-  // renderEmptyBlock = () => (
-  //   <div className="empty-block">
-  //     <style jsx>{emptyBlockStyle}</style>
-  //   </div>
-  // )
 
   render() {
-    const { value } = this.props;
-    const { animationClasses } = this.state;
-
-    // if (value === 0) {
-    //   return this.renderEmptyBlock();
-    // }
+    const { block } = this.props;
+    const { distance } = block.meta || {};
+    const animClass = this.computeAnimClass();
 
     return (
-      <div className={classNames('block', [...animationClasses])}>
-        {value}
-        <style jsx>{styles}</style>
+      <div className="block">
+        <div className="block-placeholder">
+          <div className={classNames('block-content', [...animClass])} style={{ ...BLOCK_COLOR[block.value] }}>
+            {block.value || ''}
+          </div>
+        </div>
+        <style jsx>{`
+          .block {
+            display: inline-block;
+            box-sizing: border-box;
+            vertical-align: middle;
+            padding: 5px;
+            height: ${100 / SIZE}%;
+            width:  ${100 / SIZE}%;
+          }
+          .block-placeholder {
+            height: 100%;
+            width: 100%;
+            background-color: #C8BCB3;
+            border-radius: 4px;            
+          }
+          .block-content { 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            width: 100%;
+            border-radius: 4px;
+            font-size: 40px;    
+            color: #797068;
+            font-weight: bold;
+          }
+      `}</style>
+        <style jsx>{`
+          .block-content.new {
+            animation: add-block-anim ${animDuration}ms ease-out;
+          }
+          .block-content.merge-up {
+            animation: merge-up-anim ${animDuration}ms ease-out;
+          }
+          .block-content.merge-down {
+            animation: merge-down-anim ${animDuration}ms ease-out;
+          }
+          .block-content.merge-right {
+            animation: merge-right-anim ${animDuration}ms ease-out;
+          }
+          .block-content.merge-left {
+            animation: merge-left-anim ${animDuration}ms ease-out;
+          }
+          .block-content.move-up {
+            animation: move-up-anim ${animDuration}ms ease-out;
+          }
+          .block-content.move-down {
+            animation: move-down-anim ${animDuration}ms ease-out;
+          }
+          .block-content.move-right {
+            animation: move-right-anim ${animDuration}ms ease-out;
+          }
+          .block-content.move-left {
+            animation: move-left-anim ${animDuration}ms ease-out;
+          }
+          @keyframes add-block-anim {
+            from {transform: scale(0);}
+            to {transform: scale(1);}
+          }
+          @keyframes merge-up-anim {
+            0% {transform: scale(1) translateY(${distance * 100}%);}
+            50% {transform: scale(1.2);}
+            100% {transform: scale(1) translateY(0);}
+          }
+          @keyframes merge-down-anim {
+            0% {transform: scale(1) translateY(-${distance * 100}%);}
+            50% {transform: scale(1.2);}
+            100% {transform: scale(1) translateY(0);}
+          }
+          @keyframes merge-right-anim {
+            0% {transform: scale(1) translateX(${-distance * 100}%);}
+            50% {transform: scale(1.2);}
+            100% {transform: scale(1) translateX(0);}
+          }
+          @keyframes merge-left-anim {
+            0% {transform: scale(1) translateX(${distance * 100}%);}
+            50% {transform: scale(1.2);}
+            100% {transform: scale(1) translateX(0);}
+          }
+          @keyframes move-up-anim {
+            from {transform: translateY(${distance * 100}%)}
+            to {transform: translateY(0)}
+          }
+          @keyframes move-down-anim {
+            from {transform: translateY(-${distance * 100}%)}
+            to {transform: translateY(0)}
+          }
+          @keyframes move-right-anim {
+            from {transform: translateX(-${distance * 100}%)}
+            to {transform: translateX(0)}
+          }
+          @keyframes move-left-anim {
+            from {transform: translateX(${distance * 100}%)}
+            to {transform: translateX(0)}
+          }
+      `}</style>
       </div>
     );
   }
 }
-
-const emptyBlockStyle = css`
-  .empty-block {
-    display: inline-block;
-    height: 24%;
-    width: 24%;
-  }
-`;
-
-const styles = css`
-  .block {
-    display: inline-block;
-    border: 1px solid black;
-    height: 24%;
-    width: 24%;
-    background-color: #CB7054;
-    border-radius: 4px;
-    text-align: center;
-    font-size: 40px;
-    transition: all ${bounceDuration}ms ease-out;
-  }
-  .block.bounce-on {
-    transform: scale(1.3);
-  }
-  .move-up {
-    transform: translateY(-300px);
-  }
-`;

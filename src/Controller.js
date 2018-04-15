@@ -1,7 +1,9 @@
 import update from 'immutability-helper';
 
-import { SIZE } from './constants';
-import { getRandomInt } from './utils';
+import { SIZE, INIT_VALUES, STARTING_BLOCK, BLOCK_STATUS } from './constants';
+import { getRandomInt, getDistinctRandomInt } from './utils';
+
+const { NEW, UNTOUCHED, EMPTY, MOVED, MERGED } = BLOCK_STATUS;
 
 export const rotate90 = (blockState) => {
   const result = [];
@@ -39,50 +41,39 @@ export const rotate270 = (blockState) => {
 // main logic function
 // can be reused for all arrow action
 // just rotate the blockState then perform translate in one direction
-export const slideUp = (blockState) => {
-  let newBlockState = blockState;
-  const mergedIndex = []; // list indexes has been merged in this action
-  for (let i = 1; i < SIZE; i++) {
+export const slide = (blockState, direction) => {
+  // TODO: Improve this (just KISS)
+  // clone and reset status of block state
+  const newBlockState = blockState.map(row => row.map(block => ({ value: block.value, status: UNTOUCHED })));
+  for (let i = 1; i < SIZE; i++) { // loop from second row
     for (let j = 0; j < SIZE; j++) {
-      if (newBlockState[i][j] === 0) {
+      if (newBlockState[i][j].value === 0) {
         continue;
       }
 
-      if (newBlockState[i - 1][j] === newBlockState[i][j]) {
-        newBlockState = update(newBlockState, {
-          [i]: { [j]: { $set: 0 } },
-          [i - 1]: { [j]: { $set: newBlockState[i][j] * 2 } },
-        });
-        mergedIndex.push(((i - 1) * SIZE) + j);
-      } else if (newBlockState[i - 1][j] === 0) {
+      if (newBlockState[i - 1][j].value === newBlockState[i][j].value) {
+        newBlockState[i - 1][j] = { value: newBlockState[i][j].value * 2, status: MERGED, meta: { distance: 1, direction } };
+        newBlockState[i][j] = { value: 0, status: EMPTY };
+      } else if (newBlockState[i - 1][j].value === 0) {
         if (i === 1) {
-          newBlockState = update(newBlockState, {
-            [i]: { [j]: { $set: 0 } },
-            0: { [j]: { $set: newBlockState[i][j] } },
-          });
+          newBlockState[0][j] = { value: newBlockState[i][j].value, status: MOVED, meta: { distance: 1, direction } };
+          newBlockState[i][j] = { value: 0, status: EMPTY };
         }
         for (let k = i - 2; k >= 0; k--) {
-          const mergedAtThisIndex = mergedIndex.indexOf((k * SIZE) + j) !== -1;
-          // check mergedAtThisIndex to perform mergin only one time
-          if (newBlockState[k][j] === newBlockState[i][j] && !mergedAtThisIndex) {
-            newBlockState = update(newBlockState, {
-              [i]: { [j]: { $set: 0 } },
-              [k]: { [j]: { $set: newBlockState[i][j] * 2 } },
-            });
-            mergedIndex.push((k * SIZE) + j);
+          const mergedAtThisIndex = newBlockState[k][j].status === MERGED;
+          // check mergedAtThisIndex to perform merging only one time
+          if (newBlockState[k][j].value === newBlockState[i][j].value && !mergedAtThisIndex) {
+            newBlockState[k][j] = { value: newBlockState[i][j].value * 2, status: MERGED, meta: { distance: i - k, direction } };
+            newBlockState[i][j] = { value: 0, status: EMPTY };
             break;
-          } else if (newBlockState[k][j] !== 0) {
-            newBlockState = update(newBlockState, {
-              [i]: { [j]: { $set: 0 } },
-              [k + 1]: { [j]: { $set: newBlockState[i][j] } },
-            });
+          } else if (newBlockState[k][j].value !== 0) {
+            newBlockState[k + 1][j] = { value: newBlockState[i][j].value, status: MOVED, meta: { distance: i - (k + 1), direction } };
+            newBlockState[i][j] = { value: 0, status: EMPTY };
             break;
           } else if (k === 0) {
-            // newBlockValues[k][j] === 0 here
-            newBlockState = update(newBlockState, {
-              [i]: { [j]: { $set: 0 } },
-              [k]: { [j]: { $set: newBlockState[i][j] } },
-            });
+            // newBlockState[k][j] === 0 here
+            newBlockState[k][j] = { value: newBlockState[i][j].value, status: MOVED, meta: { distance: i, direction } };
+            newBlockState[i][j] = { value: 0, status: EMPTY };
             break;
           }
         }
@@ -93,34 +84,57 @@ export const slideUp = (blockState) => {
 };
 
 const Controller = {
-  moveUp(blockState) {
-    return slideUp(blockState);
-  },
-
-  moveDown(blockState) {
-    return rotate180(slideUp(rotate180(blockState)));
-  },
-
-  moveRight(blockState) {
-    return rotate90(slideUp(rotate270(blockState)));
-  },
-
-  moveLeft(blockState) {
-    return rotate270(slideUp(rotate90(blockState)));
-  },
-
-  addBlock(blockState, value) {
-    const unsetIndex = [];
+  initGame() {
+    const blockState = [];
+    const randomIndex = getDistinctRandomInt(SIZE * SIZE, STARTING_BLOCK);
     for (let i = 0; i < SIZE; i++) {
+      blockState[i] = [];
       for (let j = 0; j < SIZE; j++) {
-        if (blockState[i][j] === 0) {
-          unsetIndex.push({ row: i, col: j });
+        const currIndex = (i * SIZE) + j;
+        if (randomIndex.indexOf(currIndex) !== -1) {
+          blockState[i][j] = {
+            value: INIT_VALUES[getRandomInt(INIT_VALUES.length)],
+            status: NEW,
+          };
+        } else {
+          blockState[i][j] = {
+            value: 0,
+            status: UNTOUCHED,
+          };
         }
       }
     }
-    const randomIndex = unsetIndex[getRandomInt(unsetIndex.length - 1)];
+    return blockState;
+  },
+
+  moveUp(blockState) {
+    return slide(blockState, 'up');
+  },
+
+  moveDown(blockState) {
+    return rotate180(slide(rotate180(blockState), 'down'));
+  },
+
+  moveRight(blockState) {
+    return rotate90(slide(rotate270(blockState), 'right'));
+  },
+
+  moveLeft(blockState) {
+    return rotate270(slide(rotate90(blockState), 'left'));
+  },
+
+  addBlock(blockState, value) {
+    const emptyIndex = [];
+    for (let i = 0; i < SIZE; i++) {
+      for (let j = 0; j < SIZE; j++) {
+        if (blockState[i][j].value === 0) {
+          emptyIndex.push({ row: i, col: j });
+        }
+      }
+    }
+    const randomIndex = emptyIndex[getRandomInt(emptyIndex.length - 1)];
     return update(blockState, {
-      [randomIndex.row]: { [randomIndex.col]: { $set: value } },
+      [randomIndex.row]: { [randomIndex.col]: { $set: { value, status: NEW } } },
     });
   },
 };
